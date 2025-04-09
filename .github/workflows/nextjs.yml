@@ -1,24 +1,8 @@
-name: Deploy Next.js site to Pages with npm run dev output # 適切な名前に変更してください
-
-on:
-  push:
-    branches: ["main"]
-  workflow_dispatch:
-
-permissions:
-  contents: read
-  pages: write
-  id-token: write
-
-concurrency:
-  group: "pages"
-  cancel-in-progress: false
-
 jobs:
   build:
     runs-on: ubuntu-latest
     env:
-      NODE_ENV: production # ★ ここで NODE_ENV を明示的に設定
+      NODE_ENV: production
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -36,6 +20,14 @@ jobs:
           node-version: "20"
           cache: ${{ steps.detect-package-manager.outputs.manager }}
 
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Ensure output export in next.config.js
+        run: |
+          sed -i '/^module.exports =/a \  output: "export",' next.config.js
+          cat next.config.js # 修正後のファイル内容を確認
+
       - name: Setup Pages
         uses: actions/configure-pages@v5
         with:
@@ -50,16 +42,13 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-nextjs-${{ hashFiles('**/package-lock.json') }}-
 
-      - name: Install dependencies
-        run: npm ci
-
       - name: Build with Next.js
-        run: npm run build && npm run export # Next.js の静的エクスポートを実行
+        run: npm run build && npm run export
 
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
-          path: ./out # Next.js の export 出力ディレクトリ
+          path: ./out
 
   deploy:
     environment:
